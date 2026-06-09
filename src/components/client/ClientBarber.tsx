@@ -1,19 +1,21 @@
+import { useIsMobile } from '../../lib/useIsMobile';
 import { BARBER_SPECIALTIES } from '../../data/constants';
 
 export const ClientBarber = ({ barberRef, scrollTo, bookingRef }: any) => {
+  const isMobile = useIsMobile();
   return (
     <>
       {/* ═══ BARBER ════════════════════════════════════════════════════════ */}
       <section ref={barberRef} id="barber" style={{
       backgroundColor: '#0D0D0D',
-      padding: '80px 60px'
+      padding: isMobile ? '60px 20px' : '80px 60px'
     }}>
         <div style={{
         maxWidth: 1140,
         margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 80,
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        gap: isMobile ? 40 : 80,
         alignItems: 'center'
       }}>
           <div>
@@ -33,7 +35,7 @@ export const ClientBarber = ({ barberRef, scrollTo, bookingRef }: any) => {
             }}>VOTRE BARBER</span>
             </div>
             <h2 className="lbc-bebas" style={{
-            fontSize: 88,
+            fontSize: isMobile ? 60 : 88,
             fontWeight: 400,
             color: '#F2F0E9',
             margin: '0 0 20px',
@@ -94,7 +96,7 @@ export const ClientBarber = ({ barberRef, scrollTo, bookingRef }: any) => {
 
           <div style={{
           display: 'flex',
-          justifyContent: 'flex-end'
+          justifyContent: isMobile ? 'center' : 'flex-end'
         }}>
             <div style={{
             borderRadius: 10,

@@ -1,14 +1,15 @@
-import React from 'react';
-import { Service, SERVICES, GALLERY_CARDS, BARBER_SPECIALTIES, REASSURANCE_DATA, FOOTER_LINKS_DATA } from '../../data/constants';
+import { SERVICES } from '../../data/constants';
 import { ServiceCardBold } from '../shared/ServiceCardBold';
+import { useIsMobile } from '../../lib/useIsMobile';
 
 export const ClientServices = ({ servicesRef, selectedService, setSelectedService, setSelectedSlot, scrollTo, bookingRef }: any) => {
+  const isMobile = useIsMobile();
   return (
     <>
       {/* ═══ PRESTATIONS ══════════════════════════════════════════════════ */}
       <section ref={servicesRef} id="prestations" style={{
       backgroundColor: '#F2F0E9',
-      padding: '80px 60px'
+      padding: isMobile ? '60px 20px' : '80px 60px'
     }}>
         <div style={{
         maxWidth: 1140,
@@ -30,7 +31,7 @@ export const ClientServices = ({ servicesRef, selectedService, setSelectedServic
           }}>PRESTATIONS</span>
           </div>
           <h2 className="lbc-bebas" style={{
-          fontSize: 80,
+          fontSize: isMobile ? 52 : 80,
           lineHeight: 0.88,
           color: '#0D0D0D',
           margin: '0 0 8px',
@@ -51,8 +52,8 @@ export const ClientServices = ({ servicesRef, selectedService, setSelectedServic
 
           <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: 16
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+          gap: isMobile ? 12 : 16
         }}>
             {SERVICES.map(svc => (
               <ServiceCardBold 

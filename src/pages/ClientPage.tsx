@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useIsMobile } from '../lib/useIsMobile';
 import { ServiceCardCompact } from '../components/shared/ServiceCardCompact';
 import { ClientServices } from '../components/client/ClientServices';
 import { ClientBarber } from '../components/client/ClientBarber';
@@ -21,6 +22,8 @@ export const ClientPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -51,10 +54,14 @@ export const ClientPage = () => {
   const [activeSection, setActiveSection] = useState<string>('hero');
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 80);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 80);
+      if (window.scrollY > 64) setMenuOpen(false);
+    };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+  useEffect(() => { if (!isMobile) setMenuOpen(false); }, [isMobile]);
   useEffect(() => {
     const sections = [{
       id: 'hero',
@@ -208,7 +215,7 @@ export const ClientPage = () => {
           }}>
                 {isPast ? '✓' : stepNum}
               </div>
-              <span className="lbc-bebas" style={{
+              {!isMobile && <span className="lbc-bebas" style={{
             fontSize: 11,
             textTransform: 'uppercase',
             letterSpacing: '0.15em',
@@ -218,7 +225,7 @@ export const ClientPage = () => {
             fontWeight: 400
           }}>
                 {label}
-              </span>
+              </span>}
             </div>
             {idx < 3 && <div style={{
           flex: 1,
@@ -254,19 +261,17 @@ export const ClientPage = () => {
       backgroundColor: '#F2F0E9',
       borderBottom: '3px solid #0D0D0D',
       boxShadow: scrolled ? '0 3px 0px #587373, 0 4px 20px rgba(13,13,13,0.08)' : '0 3px 0px #587373',
-      height: 64,
-      display: 'flex',
-      alignItems: 'center',
-      padding: '0 60px',
       transition: 'box-shadow 200ms ease'
     }}>
         <div style={{
         maxWidth: 1200,
         width: '100%',
         margin: '0 auto',
+        height: 64,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        padding: isMobile ? '0 20px' : '0 60px'
       }}>
           <div style={{
           display: 'flex',
@@ -290,6 +295,16 @@ export const ClientPage = () => {
           }}>BARBER SHOP</span>
           </div>
 
+          {isMobile ? (
+            <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '8px',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5
+          }}>
+              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D' }} />
+              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D' }} />
+              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D' }} />
+            </button>
+          ) : <>
           <div style={{
           display: 'flex',
           gap: 32
@@ -408,7 +423,45 @@ export const ClientPage = () => {
           }} />}
             {activeSection === 'reservation' ? 'VOUS ÊTES ICI' : 'RÉSERVER'}
           </button>
+          </>}
         </div>
+
+        {isMobile && menuOpen && <div style={{
+        backgroundColor: '#F2F0E9',
+        borderTop: '2px solid rgba(13,13,13,0.1)',
+        padding: '8px 0 16px'
+      }}>
+          {([{
+          id: 'nl1', label: 'Prestations', sectionId: 'prestations', ref: servicesRef
+        }, {
+          id: 'nl2', label: 'Le Barber', sectionId: 'barber', ref: barberRef
+        }, {
+          id: 'nl3', label: 'Réalisations', sectionId: 'realisations', ref: gallerieRef
+        }, {
+          id: 'nl4', label: 'Réserver', sectionId: 'reservation', ref: bookingRef
+        }] as { id: string; label: string; sectionId: string; ref: React.RefObject<HTMLElement | null> }[]).map(link => <button key={link.id} onClick={() => { scrollTo(link.ref); setMenuOpen(false); }} style={{
+          display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none',
+          borderLeft: activeSection === link.sectionId ? '3px solid #587373' : '3px solid transparent',
+          padding: '13px 20px', fontFamily: "'DM Sans', sans-serif", fontWeight: 800,
+          fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase',
+          color: activeSection === link.sectionId ? '#0D0D0D' : 'rgba(13,13,13,0.55)', cursor: 'pointer'
+        }}>{link.label}</button>)}
+          <div style={{ height: 1, backgroundColor: 'rgba(13,13,13,0.08)', margin: '8px 20px' }} />
+          <div style={{ display: 'flex', gap: 10, padding: '4px 20px 0' }}>
+            <button onClick={() => { navigate(user ? '/profil' : '/connexion'); setMenuOpen(false); }} style={{
+            flex: 1, background: '#0D0D0D', border: 'none', color: '#F2F0E9',
+            padding: '11px 0', borderRadius: '4px', cursor: 'pointer',
+            fontFamily: "'DM Sans', sans-serif", fontWeight: 800, fontSize: 12,
+            letterSpacing: '0.1em', textTransform: 'uppercase', boxShadow: '2px 2px 0px #587373'
+          }}>{user ? 'Mon Profil' : 'Se Connecter'}</button>
+            <button onClick={() => { scrollTo(bookingRef); setMenuOpen(false); }} style={{
+            flex: 1, backgroundColor: '#587373', color: '#F2F0E9',
+            border: '2px solid #0D0D0D', fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 16, letterSpacing: '0.1em', padding: '11px 0',
+            borderRadius: 4, cursor: 'pointer', boxShadow: '3px 3px 0px #0D0D0D'
+          }}>RÉSERVER</button>
+          </div>
+        </div>}
       </nav>
 
       {/* ═══ HERO ═════════════════════════════════════════════════════════ */}
@@ -442,13 +495,14 @@ export const ClientPage = () => {
         display: 'flex',
         alignItems: 'center',
         height: '100%',
-        padding: '0 60px',
+        padding: isMobile ? '0 24px' : '0 60px',
         maxWidth: 1200,
         margin: '0 auto'
       }}>
           <div style={{
           maxWidth: 580,
-          flex: '0 0 auto'
+          flex: '0 0 auto',
+          width: isMobile ? '100%' : 'auto'
         }}>
             <div style={{
             display: 'inline-flex',
@@ -475,7 +529,7 @@ export const ClientPage = () => {
             </div>
 
             <h1 className="lbc-bebas" style={{
-            fontSize: 96,
+            fontSize: isMobile ? 62 : 96,
             fontWeight: 400,
             lineHeight: 0.88,
             color: '#F2F0E9',
@@ -559,7 +613,7 @@ export const ClientPage = () => {
 
           <div style={{
           flex: 1,
-          display: 'flex',
+          display: isMobile ? 'none' : 'flex',
           justifyContent: 'flex-end',
           alignItems: 'flex-end',
           paddingBottom: 60
@@ -671,7 +725,7 @@ export const ClientPage = () => {
             {/* ═══ BOOKING MODULE ═══════════════════════════════════════════════ */}
       <section ref={bookingRef} id="reservation" style={{
       backgroundColor: '#F2F0E9',
-      padding: '100px 60px'
+      padding: isMobile ? '60px 20px' : '100px 60px'
     }}>
         <div style={{
         maxWidth: 1140,
@@ -693,7 +747,7 @@ export const ClientPage = () => {
           }}>RÉSERVATION</span>
           </div>
           <h2 className="lbc-bebas" style={{
-          fontSize: 80,
+          fontSize: isMobile ? 52 : 80,
           fontWeight: 400,
           color: '#0D0D0D',
           margin: '0 0 12px',
@@ -781,8 +835,8 @@ export const ClientPage = () => {
               </button>
             </div> : <div style={{
           display: 'grid',
-          gridTemplateColumns: '62% 38%',
-          gap: 40,
+          gridTemplateColumns: isMobile ? '1fr' : '62% 38%',
+          gap: isMobile ? 24 : 40,
           alignItems: 'start'
         }}>
               {/* Left column */}
@@ -816,7 +870,7 @@ export const ClientPage = () => {
                     </div>
                     <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
                 gap: 14
               }}>
                       {SERVICES.map(svc => (
@@ -1056,7 +1110,7 @@ export const ClientPage = () => {
                       </p>}
                     <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(5, 1fr)',
+                gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : 'repeat(5, 1fr)',
                 gap: 10
               }}>
                       {availableSlots.map(slot => {
@@ -1299,9 +1353,9 @@ export const ClientPage = () => {
                   color: '#F2F0E9',
                   border: '2px solid #0D0D0D',
                   fontFamily: "'Bebas Neue', sans-serif",
-                  fontSize: 18,
+                  fontSize: isMobile ? 14 : 18,
                   letterSpacing: '0.12em',
-                  padding: '14px 40px',
+                  padding: isMobile ? '14px 16px' : '14px 40px',
                   borderRadius: 4,
                   cursor: isSubmitting ? 'default' : 'pointer',
                   boxShadow: isSubmitting ? '2px 2px 0px #0D0D0D' : '4px 4px 0px #0D0D0D',
@@ -1478,7 +1532,7 @@ export const ClientPage = () => {
       {/* ═══ REASSURANCE ══════════════════════════════════════════════════ */}
       <section style={{
       backgroundColor: '#587373',
-      padding: '64px 60px',
+      padding: isMobile ? '48px 20px' : '64px 60px',
       borderTop: '3px solid #0D0D0D',
       borderBottom: '3px solid #0D0D0D'
     }}>
@@ -1486,8 +1540,8 @@ export const ClientPage = () => {
         maxWidth: 1140,
         margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 20
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+        gap: isMobile ? 16 : 20
       }}>
           {REASSURANCE_DATA.map(item => <div key={item.id} style={{
           display: 'flex',
@@ -1535,15 +1589,18 @@ export const ClientPage = () => {
       {/* ═══ FOOTER ════════════════════════════════════════════════════════ */}
       <footer style={{
       backgroundColor: '#0D0D0D',
-      padding: '28px 60px',
+      padding: isMobile ? '24px 20px' : '28px 60px',
       borderTop: '3px solid #587373'
     }}>
         <div style={{
         maxWidth: 1140,
         margin: '0 auto',
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: isMobile ? 'center' : 'space-between',
+        gap: isMobile ? 12 : 0,
+        textAlign: isMobile ? 'center' : 'left'
       }}>
           <span className="lbc-bebas" style={{
           fontSize: 20,

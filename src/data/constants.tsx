@@ -208,6 +208,8 @@ html { scroll-behavior: smooth; }
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: #F2F0E9; }
 ::-webkit-scrollbar-thumb { background: #587373; border: 2px solid #F2F0E9; border-radius: 4px; }
+.lbc-scrollbar-hide::-webkit-scrollbar { display: none; }
+.lbc-scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 `;
 export function getDates(): DateItem[] {
   return Array.from({

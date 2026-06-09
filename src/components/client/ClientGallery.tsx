@@ -1,14 +1,14 @@
-import React from 'react';
-import { Service, GALLERY_CARDS, BARBER_SPECIALTIES, REASSURANCE_DATA, FOOTER_LINKS_DATA } from '../../data/constants';
-import { ServiceCardBold } from '../shared/ServiceCardBold';
+import { GALLERY_CARDS } from '../../data/constants';
+import { useIsMobile } from '../../lib/useIsMobile';
 
 export const ClientGallery = ({ gallerieRef, scrollTo, bookingRef }: any) => {
+  const isMobile = useIsMobile();
   return (
     <>
       {/* ═══ GALERIE ════════════════════════════════════════════════════════ */}
       <section ref={gallerieRef} id="realisations" style={{
       backgroundColor: '#0D0D0D',
-      padding: '100px 60px'
+      padding: isMobile ? '60px 20px' : '100px 60px'
     }}>
         <div style={{
         maxWidth: 1140,
@@ -30,7 +30,7 @@ export const ClientGallery = ({ gallerieRef, scrollTo, bookingRef }: any) => {
           }}>RÉALISATIONS</span>
           </div>
           <h2 className="lbc-bebas" style={{
-          fontSize: 80,
+          fontSize: isMobile ? 52 : 80,
           fontWeight: 400,
           color: '#F2F0E9',
           margin: '0 0 0',
@@ -55,15 +55,15 @@ export const ClientGallery = ({ gallerieRef, scrollTo, bookingRef }: any) => {
 
           <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 20,
-          marginTop: 56
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+          gap: isMobile ? 16 : 20,
+          marginTop: isMobile ? 36 : 56
         }}>
             {GALLERY_CARDS.map(card => <div key={card.id} style={{
             borderRadius: 10,
             overflow: 'hidden',
             cursor: 'pointer',
-            height: 420,
+            height: isMobile ? 280 : 420,
             border: '2px solid #587373',
             boxShadow: '5px 5px 0px #587373',
             transition: 'transform 150ms ease, box-shadow 150ms ease',
