@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '../lib/useIsMobile';
 import { useBookingContext } from '../context/BookingContext';
 import {
   Booking, LoyaltyConfig, DEFAULT_LOYALTY_CONFIG,
@@ -19,6 +20,7 @@ export const AdminPage = () => {
   const { bookings, blockedSlots } = useBookingContext();
   const navigate = useNavigate();
   const { isAdmin, loading } = useAuth();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!loading && !isAdmin) {
@@ -231,7 +233,8 @@ export const AdminPage = () => {
       minHeight: '100vh',
       backgroundColor: '#0D0D0D',
       fontFamily: "'DM Sans', sans-serif",
-      color: '#F2F0E9'
+      color: '#F2F0E9',
+      overflowX: 'hidden'
     }}>
         <style>{KEYFRAMES}</style>
 
@@ -244,49 +247,40 @@ export const AdminPage = () => {
         zIndex: 100,
         backgroundColor: '#0D0D0D',
         borderBottom: '3px solid #587373',
-        boxShadow: '0 3px 0px rgba(88,115,115,0.3)',
-        height: 64,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 40px'
+        boxShadow: '0 3px 0px rgba(88,115,115,0.3)'
       }}>
+          {/* Main bar */}
           <div style={{
           maxWidth: 1200,
           width: '100%',
           margin: '0 auto',
+          height: 64,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          padding: isMobile ? '0 16px' : '0 40px'
         }}>
-            <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0
-          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
               <span className="lbc-bebas" style={{
-              fontSize: 26,
+              fontSize: isMobile ? 22 : 26,
               letterSpacing: '0.15em',
               color: '#F2F0E9',
               textShadow: '2px 2px 0px rgba(88,115,115,0.4)'
             }}>LALBICUT</span>
               <span className="lbc-bebas" style={{
-              marginLeft: 14,
-              fontSize: 11,
+              marginLeft: 10,
+              fontSize: 10,
               color: '#F2F0E9',
               letterSpacing: '0.15em',
               backgroundColor: '#587373',
               border: '1.5px solid rgba(242,240,233,0.3)',
               boxShadow: '2px 2px 0px rgba(13,13,13,0.3)',
               borderRadius: 4,
-              padding: '3px 10px'
-            }}>PANNEAU ADMIN</span>
+              padding: '3px 8px'
+            }}>{isMobile ? 'ADMIN' : 'PANNEAU ADMIN'}</span>
             </div>
 
-            <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 32
-          }}>
+            {!isMobile && <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
               {ADMIN_TABS.map(tab => <button key={tab.id} onClick={() => setAdminView(tab.id)} style={{
               background: 'none',
               border: 'none',
@@ -306,7 +300,7 @@ export const AdminPage = () => {
             }}>
                   {tab.label}
                 </button>)}
-            </div>
+            </div>}
 
             <button onClick={() => {
             signOut(auth).then(() => {
@@ -319,10 +313,10 @@ export const AdminPage = () => {
             boxShadow: '2px 2px 0px rgba(88,115,115,0.3)',
             borderRadius: 4,
             fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 13,
+            fontSize: 12,
             letterSpacing: '0.1em',
             color: 'rgba(242,240,233,0.6)',
-            padding: '8px 18px',
+            padding: isMobile ? '7px 12px' : '8px 18px',
             cursor: 'pointer',
             transition: 'all 150ms ease'
           }} onMouseEnter={e => {
@@ -332,16 +326,41 @@ export const AdminPage = () => {
             e.currentTarget.style.color = 'rgba(242,240,233,0.6)';
             e.currentTarget.style.borderColor = 'rgba(242,240,233,0.2)';
           }}>
-              QUITTER L'ADMIN
+              {isMobile ? 'QUITTER' : "QUITTER L'ADMIN"}
             </button>
           </div>
+
+          {/* Mobile tabs row */}
+          {isMobile && <div className="lbc-scrollbar-hide" style={{
+          display: 'flex',
+          overflowX: 'auto',
+          borderTop: '1px solid rgba(88,115,115,0.25)',
+          padding: '0 16px'
+        }}>
+            {ADMIN_TABS.map(tab => <button key={tab.id} onClick={() => setAdminView(tab.id)} style={{
+            flexShrink: 0,
+            background: 'none',
+            border: 'none',
+            borderBottom: adminView === tab.id ? '3px solid #587373' : '3px solid transparent',
+            color: adminView === tab.id ? '#F2F0E9' : 'rgba(242,240,233,0.45)',
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 13,
+            letterSpacing: '0.12em',
+            padding: '10px 14px 8px',
+            cursor: 'pointer',
+            transition: 'color 150ms ease',
+            whiteSpace: 'nowrap'
+          }}>
+              {tab.label}
+            </button>)}
+          </div>}
         </nav>
 
         {/* Admin Body */}
         <div style={{
         maxWidth: 1200,
         margin: '0 auto',
-        padding: '48px 48px'
+        padding: isMobile ? '28px 16px' : '48px 48px'
       }}>
 
           {/* ── DASHBOARD ── */}
@@ -355,7 +374,7 @@ export const AdminPage = () => {
               margin: 0
             }}>BONJOUR,</p>
                 <h1 className="lbc-bebas" style={{
-              fontSize: 80,
+              fontSize: isMobile ? 52 : 80,
               lineHeight: 0.85,
               color: '#F2F0E9',
               letterSpacing: '0.04em',
@@ -378,9 +397,9 @@ export const AdminPage = () => {
               {/* Stats grid */}
               <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 20,
-            marginTop: 48
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+            gap: isMobile ? 12 : 20,
+            marginTop: isMobile ? 28 : 48
           }}>
                 {[{
               id: 'st1',
@@ -492,8 +511,10 @@ export const AdminPage = () => {
                         <div style={{
                   padding: '14px 20px',
                   display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: isMobile ? 'flex-start' : 'center',
+                  gap: isMobile ? 10 : 0
                 }}>
                           <div>
                             <p className="lbc-bebas" style={{
@@ -602,7 +623,7 @@ export const AdminPage = () => {
             margin: 0
           }}>GESTION DES</p>
               <h1 className="lbc-bebas" style={{
-            fontSize: 80,
+            fontSize: isMobile ? 52 : 80,
             lineHeight: 0.85,
             color: '#F2F0E9',
             letterSpacing: '0.04em',
@@ -955,7 +976,7 @@ export const AdminPage = () => {
             margin: 0
           }}>TOUTES LES</p>
               <h1 className="lbc-bebas" style={{
-            fontSize: 72,
+            fontSize: isMobile ? 44 : 72,
             lineHeight: 0.85,
             color: '#F2F0E9',
             letterSpacing: '0.04em',

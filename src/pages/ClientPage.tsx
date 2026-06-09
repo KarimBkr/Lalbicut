@@ -247,7 +247,8 @@ export const ClientPage = () => {
     fontFamily: "'DM Sans', sans-serif",
     color: '#0D0D0D',
     margin: 0,
-    padding: 0
+    padding: 0,
+    overflowX: 'hidden'
   }}>
       <style>{KEYFRAMES}</style>
 
@@ -1614,7 +1615,7 @@ export const ClientPage = () => {
           fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '0.08em'
-        }}>© 2025 LALBICUT · BARBER SHOP</span>
+        }}>© 2026 LALBICUT · BARBER SHOP</span>
           <div style={{
           display: 'flex',
           alignItems: 'center',
