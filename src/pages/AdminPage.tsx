@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../lib/useIsMobile';
 import { useBookingContext } from '../context/BookingContext';
@@ -6,18 +6,29 @@ import {
   Booking, LoyaltyConfig, DEFAULT_LOYALTY_CONFIG,
   ALL_SLOTS, LATE_SLOTS,
   ADMIN_TABS, KEYFRAMES,
-  getDates, getTodayLong, getInitials, slotToMinutes, getDateOrder
+  getDates, getTodayLong, getInitials, slotToMinutes, getDateOrder,
+  WorkingHours, DayKey, DEFAULT_WORKING_HOURS
 } from '../data/constants';
 
-import { updateBookingStatus, saveBlockedSlots, subscribeLoyaltyProgram, saveLoyaltyProgram } from '../lib/db';
+import { updateBookingStatus, saveBlockedSlots, subscribeLoyaltyProgram, saveLoyaltyProgram, saveWorkingHours } from '../lib/db';
 import { isPassed } from '../lib/dates';
 import { sendCustomEmail, openWhatsApp } from '../lib/email';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '../context/AuthContext';
 
+const DISPLAY_DAYS: Array<{ key: DayKey; label: string; short: string }> = [
+  { key: 'mon', label: 'LUNDI',    short: 'LUN' },
+  { key: 'tue', label: 'MARDI',    short: 'MAR' },
+  { key: 'wed', label: 'MERCREDI', short: 'MER' },
+  { key: 'thu', label: 'JEUDI',    short: 'JEU' },
+  { key: 'fri', label: 'VENDREDI', short: 'VEN' },
+  { key: 'sat', label: 'SAMEDI',   short: 'SAM' },
+  { key: 'sun', label: 'DIMANCHE', short: 'DIM' },
+];
+
 export const AdminPage = () => {
-  const { bookings, blockedSlots } = useBookingContext();
+  const { bookings, blockedSlots, workingHours } = useBookingContext();
   const navigate = useNavigate();
   const { isAdmin, loading } = useAuth();
   const isMobile = useIsMobile();
@@ -49,6 +60,31 @@ export const AdminPage = () => {
     return () => unsub();
   }, []);
   const [sortBy, setSortBy] = useState<'date' | 'prix'>('date');
+
+  // ─── Working hours state ───────────────────────────────────────────────
+  const [localHours, setLocalHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS);
+  const [hoursSaving, setHoursSaving] = useState(false);
+  const [hoursSaved, setHoursSaved] = useState(false);
+  const hoursInitRef = useRef(false);
+  useEffect(() => {
+    if (!hoursInitRef.current) {
+      hoursInitRef.current = true;
+      setLocalHours(workingHours);
+    }
+  }, [workingHours]);
+  const updateDay = (key: DayKey, field: 'open' | 'start' | 'end', value: boolean | string) => {
+    setLocalHours(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+  };
+  const saveHours = async () => {
+    setHoursSaving(true);
+    try {
+      await saveWorkingHours(localHours);
+      setHoursSaved(true);
+      setTimeout(() => setHoursSaved(false), 2500);
+    } finally {
+      setHoursSaving(false);
+    }
+  };
 
   // ─── New admin state ───────────────────────────────────────────────────
   const [expandedBooking, setExpandedBooking] = useState<string | null>(null);
@@ -234,7 +270,6 @@ export const AdminPage = () => {
       backgroundColor: '#0D0D0D',
       fontFamily: "'DM Sans', sans-serif",
       color: '#F2F0E9',
-      overflowX: 'hidden'
     }}>
         <style>{KEYFRAMES}</style>
 
@@ -649,8 +684,149 @@ export const AdminPage = () => {
                   <span>{slotsBlockedCount} BLOQUÉS</span>
                 </p>}
 
-              {/* Date strip */}
-              <div className="lbc-scrollbar-hide" style={{
+              {/* ── Horaires de la semaine ── */}
+              <div style={{
+            marginTop: 32,
+            backgroundColor: 'rgba(242,240,233,0.04)',
+            border: '2px solid rgba(242,240,233,0.1)',
+            borderRadius: 8,
+            overflow: 'hidden'
+          }}>
+                <div style={{
+              backgroundColor: 'rgba(88,115,115,0.2)',
+              borderBottom: '2px solid rgba(242,240,233,0.1)',
+              padding: '10px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+                  <div>
+                    <p className="lbc-bebas" style={{ margin: 0, fontSize: 16, color: '#F2F0E9', letterSpacing: '0.15em' }}>HORAIRES DE LA SEMAINE</p>
+                    <p className="lbc-dmsans" style={{ margin: 0, fontSize: 11, color: 'rgba(242,240,233,0.4)', marginTop: 2 }}>Ces horaires s'appliquent toutes les semaines.</p>
+                  </div>
+                </div>
+
+                <div style={{ padding: '4px 0' }}>
+                  {DISPLAY_DAYS.map(({ key, label, short }) => {
+                const isOpen = localHours[key].open;
+                const selectStyle: React.CSSProperties = {
+                  flex: 1,
+                  minWidth: 0,
+                  backgroundColor: 'rgba(242,240,233,0.08)',
+                  color: '#F2F0E9',
+                  border: '1.5px solid rgba(242,240,233,0.15)',
+                  borderRadius: 4,
+                  padding: '6px 8px',
+                  fontFamily: "'Bebas Neue', sans-serif",
+                  fontSize: 14,
+                  letterSpacing: '0.06em',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  appearance: 'auto' as const,
+                };
+                return (
+                  <div key={key} style={{
+                borderBottom: '1px solid rgba(242,240,233,0.06)',
+                padding: isMobile ? '10px 14px' : '0 16px',
+              }}>
+                    {/* Ligne 1 : nom + toggle (toujours sur une seule ligne) */}
+                    <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: isMobile ? 0 : '10px 0',
+                }}>
+                      <span className="lbc-bebas" style={{
+                    flexShrink: 0,
+                    width: isMobile ? 36 : 90,
+                    fontSize: isMobile ? 13 : 14,
+                    letterSpacing: '0.1em',
+                    color: isOpen ? '#F2F0E9' : 'rgba(242,240,233,0.3)'
+                  }}>{isMobile ? short : label}</span>
+
+                      <button onClick={() => updateDay(key, 'open', !isOpen)} style={{
+                    flexShrink: 0,
+                    backgroundColor: isOpen ? '#587373' : 'rgba(242,240,233,0.06)',
+                    color: isOpen ? '#F2F0E9' : 'rgba(242,240,233,0.35)',
+                    border: isOpen ? '1.5px solid rgba(242,240,233,0.25)' : '1.5px solid rgba(242,240,233,0.1)',
+                    borderRadius: 4,
+                    padding: '5px 12px',
+                    cursor: 'pointer',
+                    fontFamily: "'Bebas Neue', sans-serif",
+                    fontSize: 13,
+                    letterSpacing: '0.12em',
+                    transition: 'all 150ms ease',
+                    boxShadow: isOpen ? '2px 2px 0px rgba(13,13,13,0.25)' : 'none'
+                  }}>
+                        {isOpen ? '● OUVERT' : '○ FERMÉ'}
+                      </button>
+
+                      {/* Desktop : selects inline */}
+                      {!isMobile && isOpen && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                          <select value={localHours[key].start} onChange={e => updateDay(key, 'start', e.target.value)} style={selectStyle}>
+                            {ALL_SLOTS.map(s => <option key={s} value={s} style={{ backgroundColor: '#1a1a1a' }}>{s}</option>)}
+                          </select>
+                          <span className="lbc-bebas" style={{ color: 'rgba(242,240,233,0.35)', fontSize: 16, flexShrink: 0 }}>→</span>
+                          <select value={localHours[key].end} onChange={e => updateDay(key, 'end', e.target.value)} style={selectStyle}>
+                            {ALL_SLOTS.filter(s => s >= localHours[key].start).map(s => <option key={s} value={s} style={{ backgroundColor: '#1a1a1a' }}>{s}</option>)}
+                          </select>
+                        </div>
+                      )}
+                      {!isOpen && <span className="lbc-dmsans" style={{ fontSize: 12, color: 'rgba(242,240,233,0.2)', fontStyle: 'italic' }}>Aucun créneau</span>}
+                    </div>
+
+                    {/* Ligne 2 mobile : selects sur toute la largeur */}
+                    {isMobile && isOpen && (
+                      <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    marginTop: 8,
+                    marginBottom: 4,
+                  }}>
+                        <select value={localHours[key].start} onChange={e => updateDay(key, 'start', e.target.value)} style={selectStyle}>
+                          {ALL_SLOTS.map(s => <option key={s} value={s} style={{ backgroundColor: '#1a1a1a' }}>{s}</option>)}
+                        </select>
+                        <span className="lbc-bebas" style={{ color: 'rgba(242,240,233,0.35)', fontSize: 16, flexShrink: 0 }}>→</span>
+                        <select value={localHours[key].end} onChange={e => updateDay(key, 'end', e.target.value)} style={selectStyle}>
+                          {ALL_SLOTS.filter(s => s >= localHours[key].start).map(s => <option key={s} value={s} style={{ backgroundColor: '#1a1a1a' }}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+                </div>
+
+                <div style={{ padding: '12px 16px' }}>
+                  <button onClick={saveHours} disabled={hoursSaving} style={{
+                width: '100%',
+                backgroundColor: hoursSaved ? 'rgba(88,115,115,0.3)' : '#587373',
+                color: '#F2F0E9',
+                border: '2px solid rgba(242,240,233,0.2)',
+                borderRadius: 6,
+                padding: '12px 0',
+                fontFamily: "'Bebas Neue', sans-serif",
+                fontSize: 16,
+                letterSpacing: '0.15em',
+                cursor: hoursSaving ? 'wait' : 'pointer',
+                boxShadow: hoursSaved ? 'none' : '3px 3px 0px rgba(13,13,13,0.3)',
+                transition: 'all 150ms ease',
+                opacity: hoursSaving ? 0.7 : 1
+              }}>
+                    {hoursSaved ? '✓ HORAIRES SAUVEGARDÉS' : hoursSaving ? 'SAUVEGARDE...' : 'SAUVEGARDER LES HORAIRES'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Date strip — grid 4-col sur mobile, scroll horizontal desktop */}
+              <div className={isMobile ? '' : 'lbc-scrollbar-hide'} style={isMobile ? {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 8,
+            marginTop: 32
+          } : {
             display: 'flex',
             gap: 10,
             overflowX: 'auto',
@@ -662,8 +838,8 @@ export const AdminPage = () => {
               const isToday = idx === 0;
               return <button key={`ad-${date.dayNum}-${date.monthShort}`} onClick={() => setAdminSelectedDate(date.label)} style={{
                 flexShrink: 0,
-                width: 72,
-                padding: '14px 0',
+                width: isMobile ? '100%' : 72,
+                padding: isMobile ? '10px 4px' : '14px 0',
                 borderRadius: 6,
                 cursor: 'pointer',
                 border: isSel ? '2px solid #587373' : isToday && !isSel ? '2px solid rgba(88,115,115,0.4)' : '2px solid rgba(242,240,233,0.1)',
@@ -672,7 +848,7 @@ export const AdminPage = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
+                gap: isMobile ? 2 : 4,
                 transition: 'all 150ms ease'
               }} onMouseEnter={e => {
                 if (!isSel) {
@@ -686,19 +862,19 @@ export const AdminPage = () => {
                 }
               }}>
                       <span className="lbc-bebas" style={{
-                  fontSize: 11,
-                  letterSpacing: '0.1em',
+                  fontSize: isMobile ? 10 : 11,
+                  letterSpacing: '0.08em',
                   color: isSel ? 'rgba(242,240,233,0.75)' : 'rgba(242,240,233,0.4)'
                 }}>{date.dayName}</span>
                       <span className="lbc-bebas" style={{
-                  fontSize: 28,
+                  fontSize: isMobile ? 22 : 28,
                   letterSpacing: '0.02em',
                   color: isSel ? '#F2F0E9' : 'rgba(242,240,233,0.7)',
                   lineHeight: 1
                 }}>{date.dayNum}</span>
                       <span className="lbc-bebas" style={{
-                  fontSize: 11,
-                  letterSpacing: '0.08em',
+                  fontSize: isMobile ? 9 : 11,
+                  letterSpacing: '0.06em',
                   color: isSel ? 'rgba(242,240,233,0.6)' : 'rgba(242,240,233,0.35)'
                 }}>{date.monthShort.toUpperCase()}</span>
                     </button>;
@@ -709,8 +885,8 @@ export const AdminPage = () => {
               <div style={{
             marginTop: 24,
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '4px 8px'
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+            gap: isMobile ? 4 : '4px 8px'
           }}>
                 {ALL_SLOTS.map(slot => {
               const booking = getBookingForSlot(slot);
@@ -723,171 +899,78 @@ export const AdminPage = () => {
                 const slotIsPassed = isPassed(booking, now);
                 return <div key={`slot-${slot}`} style={{
                   gridColumn: '1 / -1',
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
                   borderRadius: 8,
                   overflow: 'hidden',
                   border: slotIsPassed ? '2px solid rgba(242,240,233,0.18)' : '2px solid #587373',
                   backgroundColor: slotIsPassed ? 'rgba(242,240,233,0.03)' : 'rgba(88,115,115,0.12)',
                   boxShadow: slotIsPassed ? '2px 2px 0px rgba(0,0,0,0.2)' : '3px 3px 0px rgba(88,115,115,0.3)',
-                  height: 56,
                   opacity: slotIsPassed ? 0.75 : 1
                 }}>
-                      {/* Heure */}
-                      <div style={{
-                    width: 90,
-                    padding: '0 20px',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}>
-                        <span className="lbc-bebas" style={{
-                      fontSize: 22,
-                      color: '#F2F0E9',
-                      letterSpacing: '0.06em'
-                    }}>{slot}</span>
-                      </div>
-                      {/* Sep */}
-                      <div style={{
-                    width: 1,
-                    height: '100%',
-                    backgroundColor: 'rgba(88,115,115,0.3)',
-                    flexShrink: 0
-                  }} />
-                      {/* Avatar */}
-                      <div style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 4,
-                    backgroundColor: 'rgba(88,115,115,0.3)',
-                    border: '1.5px solid rgba(88,115,115,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    margin: '0 14px'
-                  }}>
-                        <span className="lbc-bebas" style={{
-                      fontSize: 14,
-                      color: '#F2F0E9',
-                      lineHeight: '36px',
-                      textAlign: 'center'
-                    }}>{initials}</span>
-                      </div>
-                      {/* Info client */}
-                      <div style={{
-                    flex: 1,
-                    padding: '0 4px',
-                    overflow: 'hidden'
-                  }}>
-                        <p className="lbc-bebas" style={{
-                      fontSize: 16,
-                      color: '#F2F0E9',
-                      letterSpacing: '0.04em',
-                      margin: 0,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>{booking.clientName}</p>
-                        <p className="lbc-dmsans" style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'rgba(242,240,233,0.45)',
-                      margin: '2px 0 0',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                          <span>{booking.service.name}</span>
-                          <span> · </span>
-                          <span>{booking.clientPhone}</span>
-                        </p>
-                      </div>
-                      {/* Sep */}
-                      <div style={{
-                    width: 1,
-                    height: '100%',
-                    backgroundColor: 'rgba(88,115,115,0.2)',
-                    flexShrink: 0
-                  }} />
-                      {/* Prix */}
-                      <div style={{
-                    padding: '0 20px',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}>
-                        {isLate && <span className="lbc-bebas" style={{
-                      fontSize: 10,
-                      backgroundColor: 'rgba(88,115,115,0.2)',
-                      border: '1px solid rgba(88,115,115,0.4)',
-                      color: '#587373',
-                      borderRadius: 3,
-                      padding: '2px 6px'
-                    }}>+5 EUR</span>}
-                        <span className="lbc-bebas" style={{
-                      fontSize: 22,
-                      color: '#587373'
-                    }}>{booking.price}€</span>
-                      </div>
-                      {/* Badge + actions — diffèrent selon passé ou futur */}
-                      {slotIsPassed ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', flexShrink: 0 }}>
-                          {booking.status === 'pending' && (
-                            <button onClick={() => confirmBooking(booking.id)} style={{
-                              backgroundColor: '#587373', border: '1.5px solid rgba(242,240,233,0.2)',
-                              boxShadow: '2px 2px 0px rgba(88,115,115,0.3)',
-                              fontFamily: "'Bebas Neue', sans-serif", fontSize: 11,
-                              color: '#F2F0E9', letterSpacing: '0.1em',
-                              padding: '6px 12px', borderRadius: 4, cursor: 'pointer', transition: 'all 150ms ease'
-                            }}>EFFECTUÉE</button>
-                          )}
-                          {booking.status === 'confirmed' && (
-                            <span className="lbc-bebas" style={{
-                              backgroundColor: 'rgba(242,240,233,0.06)', border: '1.5px solid rgba(242,240,233,0.2)',
-                              color: 'rgba(242,240,233,0.4)', fontSize: 11, letterSpacing: '0.1em',
-                              borderRadius: 4, padding: '6px 12px'
-                            }}>TERMINÉ</span>
-                          )}
-                          <button onClick={() => cancelBooking(booking.id)} style={{
-                            backgroundColor: 'transparent', border: '1.5px solid rgba(242,240,233,0.15)',
-                            fontFamily: "'Bebas Neue', sans-serif", fontSize: 11,
-                            color: 'rgba(242,240,233,0.35)', letterSpacing: '0.1em',
-                            padding: '6px 12px', borderRadius: 4, cursor: 'pointer', transition: 'all 150ms ease',
-                            marginRight: 16
-                          }} onMouseEnter={e => { e.currentTarget.style.color = 'rgba(242,240,233,0.7)'; e.currentTarget.style.borderColor = 'rgba(242,240,233,0.4)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(242,240,233,0.35)'; e.currentTarget.style.borderColor = 'rgba(242,240,233,0.15)'; }}>
-                            ABSENT
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div style={{ padding: '0 16px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                            {booking.status === 'pending' ? (
-                              <span className="lbc-bebas" style={{
-                                backgroundColor: 'rgba(88,115,115,0.2)', border: '1.5px solid #587373',
-                                color: '#587373', fontSize: 11, letterSpacing: '0.1em', borderRadius: 4, padding: '4px 10px'
-                              }}>EN ATTENTE</span>
+                      {isMobile ? (
+                        /* ── Mobile : 2 lignes ── */
+                        <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {/* Ligne 1 : heure + nom + prix */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span className="lbc-bebas" style={{ flexShrink: 0, fontSize: 18, color: '#F2F0E9', letterSpacing: '0.06em', width: 48 }}>{slot}</span>
+                            <span className="lbc-bebas" style={{ flex: 1, fontSize: 15, color: '#F2F0E9', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.clientName}</span>
+                            <span className="lbc-bebas" style={{ flexShrink: 0, fontSize: 18, color: '#587373' }}>{booking.price}€</span>
+                          </div>
+                          {/* Ligne 2 : service + status + action */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 58 }}>
+                            <span className="lbc-dmsans" style={{ flex: 1, fontSize: 11, fontWeight: 700, color: 'rgba(242,240,233,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.service.name}</span>
+                            {slotIsPassed ? (
+                              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                {booking.status === 'pending' && <button onClick={() => confirmBooking(booking.id)} style={{ backgroundColor: '#587373', border: '1.5px solid rgba(242,240,233,0.2)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 10, color: '#F2F0E9', letterSpacing: '0.1em', padding: '4px 8px', borderRadius: 3, cursor: 'pointer' }}>FAIT</button>}
+                                {booking.status === 'confirmed' && <span className="lbc-bebas" style={{ fontSize: 10, color: 'rgba(242,240,233,0.4)', border: '1px solid rgba(242,240,233,0.15)', borderRadius: 3, padding: '4px 8px' }}>TERMINÉ</span>}
+                                <button onClick={() => cancelBooking(booking.id)} style={{ backgroundColor: 'transparent', border: '1.5px solid rgba(242,240,233,0.15)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 10, color: 'rgba(242,240,233,0.35)', letterSpacing: '0.1em', padding: '4px 8px', borderRadius: 3, cursor: 'pointer' }}>ABSENT</button>
+                              </div>
                             ) : (
-                              <span className="lbc-bebas" style={{
-                                backgroundColor: 'rgba(242,240,233,0.08)', border: '1.5px solid rgba(242,240,233,0.25)',
-                                color: 'rgba(242,240,233,0.55)', fontSize: 11, letterSpacing: '0.1em', borderRadius: 4, padding: '4px 10px'
-                              }}>CONFIRMÉ</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                <span className="lbc-bebas" style={{ fontSize: 10, letterSpacing: '0.1em', color: booking.status === 'pending' ? '#587373' : 'rgba(242,240,233,0.5)', border: booking.status === 'pending' ? '1px solid #587373' : '1px solid rgba(242,240,233,0.2)', borderRadius: 3, padding: '3px 7px' }}>{booking.status === 'pending' ? 'ATTENTE' : 'CONFIRMÉ'}</span>
+                                <button onClick={() => { setAdminView('reservations'); setExpandedBooking(booking.id); }} style={{ backgroundColor: 'rgba(88,115,115,0.2)', border: '1.5px solid rgba(88,115,115,0.5)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 10, color: '#587373', letterSpacing: '0.1em', padding: '4px 8px', borderRadius: 3, cursor: 'pointer' }}>DÉTAILS</button>
+                              </div>
                             )}
                           </div>
-                          <button onClick={() => { setAdminView('reservations'); setExpandedBooking(booking.id); }} style={{
-                            backgroundColor: 'rgba(88,115,115,0.2)', border: '1.5px solid rgba(88,115,115,0.5)',
-                            boxShadow: '2px 2px 0px rgba(88,115,115,0.2)',
-                            fontFamily: "'Bebas Neue', sans-serif", fontSize: 11,
-                            color: '#587373', letterSpacing: '0.1em',
-                            padding: '6px 14px', borderRadius: 4, marginRight: 16, cursor: 'pointer', flexShrink: 0, transition: 'all 150ms ease'
-                          }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(88,115,115,0.35)'; e.currentTarget.style.boxShadow = '3px 3px 0px rgba(88,115,115,0.3)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(88,115,115,0.2)'; e.currentTarget.style.boxShadow = '2px 2px 0px rgba(88,115,115,0.2)'; }}>
-                            DÉTAILS
-                          </button>
-                        </>
+                        </div>
+                      ) : (
+                        /* ── Desktop : ligne unique ── */
+                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', height: 56 }}>
+                          {/* Heure */}
+                          <div style={{ width: 90, padding: '0 20px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                            <span className="lbc-bebas" style={{ fontSize: 22, color: '#F2F0E9', letterSpacing: '0.06em' }}>{slot}</span>
+                          </div>
+                          <div style={{ width: 1, height: '100%', backgroundColor: 'rgba(88,115,115,0.3)', flexShrink: 0 }} />
+                          {/* Avatar */}
+                          <div style={{ width: 36, height: 36, borderRadius: 4, backgroundColor: 'rgba(88,115,115,0.3)', border: '1.5px solid rgba(88,115,115,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, margin: '0 14px' }}>
+                            <span className="lbc-bebas" style={{ fontSize: 14, color: '#F2F0E9', lineHeight: '36px', textAlign: 'center' }}>{initials}</span>
+                          </div>
+                          {/* Info */}
+                          <div style={{ flex: 1, padding: '0 4px', overflow: 'hidden' }}>
+                            <p className="lbc-bebas" style={{ fontSize: 16, color: '#F2F0E9', letterSpacing: '0.04em', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{booking.clientName}</p>
+                            <p className="lbc-dmsans" style={{ fontSize: 11, fontWeight: 700, color: 'rgba(242,240,233,0.45)', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span>{booking.service.name}</span><span> · </span><span>{booking.clientPhone}</span></p>
+                          </div>
+                          <div style={{ width: 1, height: '100%', backgroundColor: 'rgba(88,115,115,0.2)', flexShrink: 0 }} />
+                          {/* Prix */}
+                          <div style={{ padding: '0 20px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {isLate && <span className="lbc-bebas" style={{ fontSize: 10, backgroundColor: 'rgba(88,115,115,0.2)', border: '1px solid rgba(88,115,115,0.4)', color: '#587373', borderRadius: 3, padding: '2px 6px' }}>+5 EUR</span>}
+                            <span className="lbc-bebas" style={{ fontSize: 22, color: '#587373' }}>{booking.price}€</span>
+                          </div>
+                          {/* Actions */}
+                          {slotIsPassed ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', flexShrink: 0 }}>
+                              {booking.status === 'pending' && <button onClick={() => confirmBooking(booking.id)} style={{ backgroundColor: '#587373', border: '1.5px solid rgba(242,240,233,0.2)', boxShadow: '2px 2px 0px rgba(88,115,115,0.3)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, color: '#F2F0E9', letterSpacing: '0.1em', padding: '6px 12px', borderRadius: 4, cursor: 'pointer', transition: 'all 150ms ease' }}>EFFECTUÉE</button>}
+                              {booking.status === 'confirmed' && <span className="lbc-bebas" style={{ backgroundColor: 'rgba(242,240,233,0.06)', border: '1.5px solid rgba(242,240,233,0.2)', color: 'rgba(242,240,233,0.4)', fontSize: 11, letterSpacing: '0.1em', borderRadius: 4, padding: '6px 12px' }}>TERMINÉ</span>}
+                              <button onClick={() => cancelBooking(booking.id)} style={{ backgroundColor: 'transparent', border: '1.5px solid rgba(242,240,233,0.15)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, color: 'rgba(242,240,233,0.35)', letterSpacing: '0.1em', padding: '6px 12px', borderRadius: 4, cursor: 'pointer', transition: 'all 150ms ease', marginRight: 16 }} onMouseEnter={e => { e.currentTarget.style.color = 'rgba(242,240,233,0.7)'; e.currentTarget.style.borderColor = 'rgba(242,240,233,0.4)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(242,240,233,0.35)'; e.currentTarget.style.borderColor = 'rgba(242,240,233,0.15)'; }}>ABSENT</button>
+                            </div>
+                          ) : (
+                            <>
+                              <div style={{ padding: '0 16px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                                {booking.status === 'pending' ? <span className="lbc-bebas" style={{ backgroundColor: 'rgba(88,115,115,0.2)', border: '1.5px solid #587373', color: '#587373', fontSize: 11, letterSpacing: '0.1em', borderRadius: 4, padding: '4px 10px' }}>EN ATTENTE</span> : <span className="lbc-bebas" style={{ backgroundColor: 'rgba(242,240,233,0.08)', border: '1.5px solid rgba(242,240,233,0.25)', color: 'rgba(242,240,233,0.55)', fontSize: 11, letterSpacing: '0.1em', borderRadius: 4, padding: '4px 10px' }}>CONFIRMÉ</span>}
+                              </div>
+                              <button onClick={() => { setAdminView('reservations'); setExpandedBooking(booking.id); }} style={{ backgroundColor: 'rgba(88,115,115,0.2)', border: '1.5px solid rgba(88,115,115,0.5)', boxShadow: '2px 2px 0px rgba(88,115,115,0.2)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, color: '#587373', letterSpacing: '0.1em', padding: '6px 14px', borderRadius: 4, marginRight: 16, cursor: 'pointer', flexShrink: 0, transition: 'all 150ms ease' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(88,115,115,0.35)'; e.currentTarget.style.boxShadow = '3px 3px 0px rgba(88,115,115,0.3)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(88,115,115,0.2)'; e.currentTarget.style.boxShadow = '2px 2px 0px rgba(88,115,115,0.2)'; }}>DÉTAILS</button>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>;
               }

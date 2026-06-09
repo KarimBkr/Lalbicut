@@ -79,6 +79,26 @@ export const SERVICES: Service[] = [{
 export const ALL_SLOTS: string[] = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30'];
 export const LATE_SLOTS = new Set(['22:00', '22:30']);
 export const DAY_LABELS = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
+
+export type DayKey = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+export type DaySchedule = { open: boolean; start: string; end: string };
+export type WorkingHours = Record<DayKey, DaySchedule>;
+// Indexé par getDay() : 0=sun, 1=mon, 2=tue, 3=wed, 4=thu, 5=fri, 6=sat
+export const DAY_KEYS: DayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+export const DEFAULT_WORKING_HOURS: WorkingHours = {
+  sun: { open: false, start: '09:00', end: '22:30' },
+  mon: { open: true,  start: '09:00', end: '19:00' },
+  tue: { open: true,  start: '09:00', end: '19:00' },
+  wed: { open: true,  start: '09:00', end: '19:00' },
+  thu: { open: true,  start: '09:00', end: '22:30' },
+  fri: { open: true,  start: '09:00', end: '22:30' },
+  sat: { open: true,  start: '09:00', end: '22:30' },
+};
+export function getSlotsForDay(dayKey: DayKey, workingHours: WorkingHours): string[] {
+  const s = workingHours[dayKey];
+  if (!s.open) return [];
+  return ALL_SLOTS.filter(slot => slot >= s.start && slot <= s.end);
+}
 export const MONTH_SHORT = ['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'];
 export const BARBER_SPECIALTIES = ['Coupes', 'Barbes', 'Rasage traditionnel', 'Lame droite'];
 export const REASSURANCE_DATA = [{

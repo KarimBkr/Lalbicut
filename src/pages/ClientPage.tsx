@@ -14,11 +14,11 @@ import {
   SERVICES, ALL_SLOTS, LATE_SLOTS,
   REASSURANCE_DATA, FOOTER_LINKS_DATA, STEP_LABELS,
   KEYFRAMES, LATE_SURCHARGE,
-  getDates, slotToMinutes
+  getDates, slotToMinutes, DAY_KEYS, getSlotsForDay
 } from '../data/constants';
 
 export const ClientPage = () => {
-  const { bookings, blockedSlots } = useBookingContext();
+  const { bookings, blockedSlots, workingHours } = useBookingContext();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,7 +56,6 @@ export const ClientPage = () => {
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 80);
-      if (window.scrollY > 64) setMenuOpen(false);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -103,7 +102,12 @@ export const ClientPage = () => {
     });
   };
   const isLateSlot = (slot: string | null): boolean => slot !== null && LATE_SLOTS.has(slot);
-  const availableSlots = selectedService?.onlyLate ? ALL_SLOTS.filter(slot => LATE_SLOTS.has(slot)) : ALL_SLOTS;
+  const selectedDayKey = selectedDate
+    ? DAY_KEYS[new Date((dates.find(d => d.label === selectedDate)?.isoDate ?? '') + 'T12:00:00').getDay()]
+    : null;
+  const isDayClosed = selectedDayKey ? !workingHours[selectedDayKey].open : false;
+  const daySlots = selectedDayKey ? getSlotsForDay(selectedDayKey, workingHours) : ALL_SLOTS;
+  const availableSlots = selectedService?.onlyLate ? daySlots.filter(slot => LATE_SLOTS.has(slot)) : daySlots;
   const getTotal = (): number | null => {
     if (!selectedService) return null;
     const basePrice = selectedService.price;
@@ -248,9 +252,16 @@ export const ClientPage = () => {
     color: '#0D0D0D',
     margin: 0,
     padding: 0,
-    overflowX: 'hidden'
   }}>
       <style>{KEYFRAMES}</style>
+
+      {/* Backdrop menu mobile */}
+      {isMobile && menuOpen && <div onClick={() => setMenuOpen(false)} style={{
+        position: 'fixed', inset: 0, zIndex: 99,
+        backgroundColor: 'rgba(13,13,13,0.45)',
+        backdropFilter: 'blur(3px)',
+        WebkitBackdropFilter: 'blur(3px)'
+      }} />}
 
       {/* ═══ NAVBAR ═══════════════════════════════════════════════════════ */}
       <nav style={{
@@ -297,13 +308,14 @@ export const ClientPage = () => {
           </div>
 
           {isMobile ? (
-            <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" style={{
+            <button onClick={() => setMenuOpen(o => !o)} aria-label={menuOpen ? 'Fermer' : 'Menu'} style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: '8px',
-            display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5
+            display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5,
+            width: 38, height: 38
           }}>
-              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D' }} />
-              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D' }} />
-              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D' }} />
+              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D', transition: 'transform 250ms ease', transformOrigin: 'center', transform: menuOpen ? 'translateY(7px) rotate(45deg)' : 'none' }} />
+              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D', transition: 'transform 250ms ease, opacity 250ms ease', opacity: menuOpen ? 0 : 1 }} />
+              <span style={{ display: 'block', width: 22, height: 2, backgroundColor: '#0D0D0D', transition: 'transform 250ms ease', transformOrigin: 'center', transform: menuOpen ? 'translateY(-7px) rotate(-45deg)' : 'none' }} />
             </button>
           ) : <>
           <div style={{
@@ -915,7 +927,7 @@ export const ClientPage = () => {
                 justifyContent: 'flex-end',
                 marginTop: 24
               }}>
-                      <button disabled={!selectedService} onClick={() => setBookingStep(2)} style={{
+                      <button disabled={!selectedService} onClick={() => { setBookingStep(2); if (!selectedDate) setSelectedDate(dates[0].label); }} style={{
                   backgroundColor: selectedService ? '#587373' : 'rgba(13,13,13,0.12)',
                   color: selectedService ? '#F2F0E9' : 'rgba(13,13,13,0.3)',
                   border: selectedService ? '2px solid #0D0D0D' : '2px solid rgba(13,13,13,0.12)',
@@ -1026,8 +1038,12 @@ export const ClientPage = () => {
                       </div>
                     </div>
 
-                    {/* Date strip */}
-                    <div className="lbc-scrollbar-hide" style={{
+                    {/* Date strip — grid 4-col sur mobile, scroll horizontal desktop */}
+                    <div className={isMobile ? '' : 'lbc-scrollbar-hide'} style={isMobile ? {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 8
+              } : {
                 display: 'flex',
                 gap: 10,
                 overflowX: 'auto',
@@ -1041,8 +1057,8 @@ export const ClientPage = () => {
                     setSelectedSlot(null);
                   }} style={{
                     flexShrink: 0,
-                    width: 72,
-                    padding: '14px 0',
+                    width: isMobile ? '100%' : 72,
+                    padding: isMobile ? '10px 4px' : '14px 0',
                     textAlign: 'center',
                     borderRadius: 6,
                     cursor: 'pointer',
@@ -1052,7 +1068,7 @@ export const ClientPage = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 4,
+                    gap: isMobile ? 2 : 4,
                     fontFamily: "'DM Sans', sans-serif",
                     transition: 'transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease'
                   }} onMouseEnter={e => {
@@ -1069,24 +1085,24 @@ export const ClientPage = () => {
                     }
                   }}>
                             <span className="lbc-bebas" style={{
-                      fontSize: 12,
-                      letterSpacing: '0.1em',
+                      fontSize: isMobile ? 10 : 12,
+                      letterSpacing: '0.08em',
                       color: isSel ? 'rgba(242,240,233,0.75)' : 'rgba(13,13,13,0.4)'
                     }}>{date.dayName}</span>
                             <span className="lbc-bebas" style={{
-                      fontSize: 28,
+                      fontSize: isMobile ? 22 : 28,
                       color: isSel ? '#F2F0E9' : '#0D0D0D',
                       lineHeight: 1,
                       letterSpacing: '0.02em'
                     }}>{date.dayNum}</span>
                             <span className="lbc-bebas" style={{
-                      fontSize: 11,
-                      letterSpacing: '0.08em',
+                      fontSize: isMobile ? 9 : 11,
+                      letterSpacing: '0.06em',
                       color: isSel ? 'rgba(242,240,233,0.6)' : 'rgba(13,13,13,0.4)'
                     }}>{date.monthShort.toUpperCase()}</span>
                             {isToday && <div style={{
-                      width: 5,
-                      height: 5,
+                      width: 4,
+                      height: 4,
                       borderRadius: '50%',
                       backgroundColor: isSel ? 'rgba(242,240,233,0.6)' : '#587373'
                     }} />}
@@ -1109,7 +1125,18 @@ export const ClientPage = () => {
               }}>
                         Coupe Nocturne est réservée aux horaires nocturnes. Choisissez 22h00 ou 22h30.
                       </p>}
-                    <div style={{
+                    {isDayClosed && selectedDate && <div style={{
+                padding: '20px 16px',
+                border: '2px solid rgba(13,13,13,0.12)',
+                borderRadius: 8,
+                backgroundColor: 'rgba(13,13,13,0.03)',
+                textAlign: 'center'
+              }}>
+                        <span style={{ fontSize: 24 }}>🚫</span>
+                        <p className="lbc-bebas" style={{ fontSize: 18, color: 'rgba(13,13,13,0.5)', margin: '8px 0 4px', letterSpacing: '0.1em' }}>FERMÉ CE JOUR-LÀ</p>
+                        <p className="lbc-dmsans" style={{ fontSize: 13, color: 'rgba(13,13,13,0.4)', margin: 0 }}>Choisissez un autre jour.</p>
+                      </div>}
+                    {!isDayClosed && <div style={{
                 display: 'grid',
                 gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : 'repeat(5, 1fr)',
                 gap: 10
@@ -1162,7 +1189,7 @@ export const ClientPage = () => {
                     }}>{selectedService?.lateSurchargeExempt ? 'NOCTURNE' : '+5€'}</span>}
                           </button>;
                 })}
-                    </div>
+                    </div>}
 
                     <div style={{
                 display: 'flex',

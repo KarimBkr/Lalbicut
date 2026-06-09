@@ -1,6 +1,6 @@
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs, writeBatch, query, where } from 'firebase/firestore';
 import { db } from './firebase';
-import { Booking, LoyaltyConfig } from '../data/constants';
+import { Booking, LoyaltyConfig, WorkingHours, DEFAULT_WORKING_HOURS } from '../data/constants';
 
 // Collection references
 const bookingsRef = collection(db, 'bookings');
@@ -50,6 +50,19 @@ export const subscribeToBlockedSlots = (callback: (slots: string[]) => void) => 
 export const saveBlockedSlots = async (slots: string[]) => {
   const docRef = doc(settingsRef, 'blockedSlots');
   await setDoc(docRef, { slots });
+};
+
+// Listen to working hours
+export const subscribeToWorkingHours = (callback: (wh: WorkingHours) => void) => {
+  const docRef = doc(settingsRef, 'workingHours');
+  return onSnapshot(docRef, (snap) => {
+    callback(snap.exists() ? (snap.data() as WorkingHours) : DEFAULT_WORKING_HOURS);
+  });
+};
+
+// Save working hours
+export const saveWorkingHours = async (wh: WorkingHours) => {
+  await setDoc(doc(settingsRef, 'workingHours'), wh);
 };
 
 // Listen to loyalty program config
