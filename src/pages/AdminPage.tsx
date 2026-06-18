@@ -42,6 +42,7 @@ export const AdminPage = () => {
   const [adminSelectedDate, setAdminSelectedDate] = useState<string | null>(() => getDates()[0].label);
   const [adminView, setAdminView] = useState<'dashboard' | 'creneaux' | 'reservations' | 'fidelite'>('dashboard');
   const [bookingFilter, setBookingFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled' | 'completed'>('all');
+  const [revenueFilter, setRevenueFilter] = useState<'week' | 'month' | 'all'>('month');
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>(DEFAULT_LOYALTY_CONFIG);
   const [localLoyalty, setLocalLoyalty] = useState<LoyaltyConfig>(DEFAULT_LOYALTY_CONFIG);
   const [loyaltySaved, setLoyaltySaved] = useState(false);
@@ -161,8 +162,30 @@ export const AdminPage = () => {
   const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
   const totalCount = bookings.length;
   const confirmationRate = totalCount > 0 ? Math.round(confirmedCount / totalCount * 100) : 0;
-  // CA uniquement sur les réservations confirmées (revenus réels encaissés ou à encaisser)
-  const confirmedRevenue = bookings.filter(b => b.status === 'confirmed').reduce((s, b) => s + b.price, 0);
+  const filteredRevenue = (() => {
+    const isoNow = now.toISOString().split('T')[0];
+    const monthPrefix = isoNow.slice(0, 7);
+    const weekStart = (() => {
+      const d = new Date(now);
+      const day = d.getDay();
+      d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+      return d.toISOString().split('T')[0];
+    })();
+    const weekEnd = (() => {
+      const d = new Date(now);
+      const day = d.getDay();
+      d.setDate(d.getDate() + (day === 0 ? 0 : 7 - day));
+      return d.toISOString().split('T')[0];
+    })();
+    return bookings.filter(b => {
+      if (b.status !== 'confirmed') return false;
+      if (revenueFilter === 'all') return true;
+      const iso = b.isoDate;
+      if (!iso) return false;
+      if (revenueFilter === 'week') return iso >= weekStart && iso <= weekEnd;
+      return iso.startsWith(monthPrefix);
+    }).reduce((s, b) => s + b.price, 0);
+  })();
 
   // ─── Loyalty stats per user ───────────────────────────────────────────
   const userLoyaltyStats = (() => {
@@ -450,12 +473,6 @@ export const AdminPage = () => {
               value: String(bookings.filter(b => b.status === 'confirmed' && !isPassed(b, now)).length),
               sub: 'RDV CONFIRMÉS FUTURS',
               highlight: false
-            }, {
-              id: 'st4',
-              label: 'CA CONFIRMÉ',
-              value: `${confirmedRevenue} EUR`,
-              sub: 'RÉSERVATIONS CONFIRMÉES',
-              highlight: false
             }].map(stat => <div key={stat.id} style={{
               borderRadius: 10,
               overflow: 'hidden',
@@ -492,6 +509,52 @@ export const AdminPage = () => {
                 }}>{stat.sub}</div>
                     </div>
                   </div>)}
+
+                {/* CA CONFIRMÉ avec toggle période */}
+                <div style={{
+              borderRadius: 10,
+              overflow: 'hidden',
+              border: '2px solid #587373',
+              boxShadow: '4px 4px 0px #587373',
+              backgroundColor: 'rgba(242,240,233,0.04)'
+            }}>
+                  <div style={{
+                backgroundColor: '#587373',
+                borderBottom: '2px solid rgba(242,240,233,0.15)',
+                padding: '8px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                    <span className="lbc-bebas" style={{ fontSize: 11, color: '#F2F0E9', letterSpacing: '0.2em' }}>CA CONFIRMÉ</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {(['week', 'month', 'all'] as const).map(f => (
+                        <button key={f} onClick={() => setRevenueFilter(f)} style={{
+                          fontFamily: "'Bebas Neue', sans-serif",
+                          fontSize: 10,
+                          letterSpacing: '0.15em',
+                          padding: '2px 8px',
+                          borderRadius: 4,
+                          border: '1.5px solid rgba(242,240,233,0.5)',
+                          backgroundColor: revenueFilter === f ? '#F2F0E9' : 'transparent',
+                          color: revenueFilter === f ? '#0D0D0D' : 'rgba(242,240,233,0.6)',
+                          cursor: 'pointer',
+                          transition: 'all 120ms ease'
+                        }}>
+                          {f === 'week' ? 'SEM' : f === 'month' ? 'MOIS' : 'TOUT'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ padding: '20px 20px 16px' }}>
+                    <div className="lbc-bebas" style={{ fontSize: 56, color: '#F2F0E9', lineHeight: 1, letterSpacing: '0.04em' }}>
+                      {filteredRevenue} EUR
+                    </div>
+                    <div className="lbc-bebas" style={{ fontSize: 10, color: 'rgba(242,240,233,0.35)', letterSpacing: '0.18em', marginTop: 10 }}>
+                      {revenueFilter === 'week' ? 'CETTE SEMAINE' : revenueFilter === 'month' ? 'CE MOIS' : 'DEPUIS LE DÉBUT'}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Upcoming */}
