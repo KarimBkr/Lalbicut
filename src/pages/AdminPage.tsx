@@ -120,17 +120,19 @@ export const AdminPage = () => {
   };
 
   // ─── Sorted & filtered bookings ───────────────────────────────────────
+  const STATUS_RANK: Record<string, number> = { confirmed: 0, pending: 1, cancelled: 2 };
   const sortedBookings = [...bookings].sort((a, b) => {
     if (sortBy === 'prix') return b.price - a.price;
     const keyA = bookingSortKey(a, now);
     const keyB = bookingSortKey(b, now);
-    return keyA < keyB ? -1 : keyA > keyB ? 1 : 0;
+    if (keyA !== keyB) return keyA < keyB ? -1 : 1;
+    return (STATUS_RANK[a.status] ?? 2) - (STATUS_RANK[b.status] ?? 2);
   });
   const filteredBookings = sortedBookings.filter(b => {
     if (bookingFilter === 'completed') return isPassed(b, now) && b.status !== 'cancelled';
     if (isPassed(b, now)) return false;
-    if (bookingFilter === 'all') return true;
     if (bookingFilter === 'cancelled') return b.status === 'cancelled';
+    if (bookingFilter === 'all') return b.status !== 'cancelled';
     return b.status === bookingFilter;
   });
 
@@ -153,12 +155,9 @@ export const AdminPage = () => {
     (b.isoDate === todayIso || b.date === "Aujourd'hui") &&
     (b.status === 'pending' || b.status === 'confirmed')
   ).length;
-  const nextRdv = [...bookings].filter(b => (b.status === 'pending' || b.status === 'confirmed') && !isPassed(b, now)).sort((a, b) => {
-    const da = getDateOrder(a.date);
-    const db = getDateOrder(b.date);
-    if (da !== db) return da - db;
-    return slotToMinutes(a.slot) - slotToMinutes(b.slot);
-  })[0] ?? null;
+  const nextRdv = [...bookings]
+    .filter(b => (b.status === 'pending' || b.status === 'confirmed') && !isPassed(b, now))
+    .sort((a, b) => bookingSortKey(a, now) < bookingSortKey(b, now) ? -1 : 1)[0] ?? null;
   const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
   const totalCount = bookings.length;
   const confirmationRate = totalCount > 0 ? Math.round(confirmedCount / totalCount * 100) : 0;
@@ -1173,7 +1172,7 @@ export const AdminPage = () => {
               flexWrap: 'wrap'
             }}>
                   {([
-                    ['all', `TOUS (${bookings.length})`],
+                    ['all', `TOUS (${bookings.filter(b => b.status !== 'cancelled' && !isPassed(b, now)).length})`],
                     ['pending', `EN ATTENTE (${bookings.filter(b => b.status === 'pending' && !isPassed(b, now)).length})`],
                     ['confirmed', `CONFIRMÉS (${bookings.filter(b => b.status === 'confirmed' && !isPassed(b, now)).length})`],
                     ['completed', `TERMINÉS (${bookings.filter(b => isPassed(b, now) && b.status !== 'cancelled').length})`],
