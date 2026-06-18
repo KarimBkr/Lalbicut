@@ -11,7 +11,7 @@ import {
 } from '../data/constants';
 
 import { updateBookingStatus, saveBlockedSlots, subscribeLoyaltyProgram, saveLoyaltyProgram, saveWorkingHours } from '../lib/db';
-import { isPassed, bookingSortKey } from '../lib/dates';
+import { isPassed, bookingSortKey, formatBookingDate } from '../lib/dates';
 import { sendCustomEmail, openWhatsApp } from '../lib/email';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -558,7 +558,7 @@ export const AdminPage = () => {
                       fontSize: 12,
                       color: 'rgba(242,240,233,0.45)',
                       margin: '4px 0 0'
-                    }}>{booking.date} à {booking.slot}</p>
+                    }}>{formatBookingDate(booking, now)} à {booking.slot}</p>
                           </div>
                           <div style={{
                     display: 'flex',
@@ -1117,7 +1117,7 @@ export const AdminPage = () => {
                 letterSpacing: '0.04em',
                 lineHeight: 1
               }}>
-                    <span>{nextRdv.date}</span>
+                    <span>{formatBookingDate(nextRdv, now)}</span>
                     <span style={{
                   color: 'rgba(242,240,233,0.4)',
                   fontSize: 16
@@ -1324,7 +1324,7 @@ export const AdminPage = () => {
                           color: 'rgba(242,240,233,0.45)',
                           display: 'block',
                           marginTop: 2
-                        }}>{booking.service.name} · {booking.date} à {booking.slot}</span>
+                        }}>{booking.service.name} · {formatBookingDate(booking, now)} à {booking.slot}</span>
                             </div>
                           </div>
                           {/* Right */}
@@ -1493,7 +1493,7 @@ export const AdminPage = () => {
                               fontSize: 13,
                               fontWeight: 700,
                               color: '#F2F0E9'
-                            }}>{booking.date}</span>
+                            }}>{formatBookingDate(booking, now)}</span>
                                   </div>
                                   {/* HEURE */}
                                   <div style={{

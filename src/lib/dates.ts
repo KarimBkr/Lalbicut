@@ -40,3 +40,20 @@ export function bookingSortKey(b: Booking, now: Date): string {
   const iso = resolveIsoDate(b, now) ?? '9999-12-31';
   return `${iso} ${b.slot}`;
 }
+
+const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+// Returns a human-readable date label computed from isoDate (never stale).
+// Falls back to b.date for legacy bookings without isoDate.
+export function formatBookingDate(b: Booking, now: Date): string {
+  const iso = resolveIsoDate(b, now);
+  if (!iso) return b.date;
+  const isoNow = now.toISOString().split('T')[0];
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isoTomorrow = tomorrow.toISOString().split('T')[0];
+  if (iso === isoNow) return "Aujourd'hui";
+  if (iso === isoTomorrow) return 'Demain';
+  const [, m, d] = iso.split('-').map(Number);
+  return `${d} ${MONTH_NAMES[m - 1]}`;
+}
