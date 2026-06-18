@@ -9,6 +9,8 @@ export interface Service {
   desc: string;
   onlyLate?: boolean;
   lateSurchargeExempt?: boolean;
+  onlyWeekday?: boolean;
+  onlyWeekend?: boolean;
 }
 export interface Booking {
   id: string;
@@ -44,14 +46,16 @@ export const SERVICES: Service[] = [{
   duration: '45 min',
   price: 20,
   priceLabel: '20€',
-  desc: 'Du lundi au vendredi, contours nets et dégradé propre.'
+  desc: 'Du lundi au vendredi, contours nets et dégradé propre.',
+  onlyWeekday: true
 }, {
   id: 's2',
   name: 'Coupe le Weekend',
   duration: '45 min',
   price: 15,
   priceLabel: '15€',
-  desc: 'Tarif spécial samedi et dimanche, même qualité moins cher.'
+  desc: 'Tarif spécial samedi et dimanche, même qualité moins cher.',
+  onlyWeekend: true
 }, {
   id: 's3',
   name: 'Coupe + Barbe',

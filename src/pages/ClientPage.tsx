@@ -1052,7 +1052,10 @@ export const ClientPage = () => {
                       {dates.map((date, idx) => {
                   const isSel = selectedDate === date.label;
                   const isToday = idx === 0;
-                  return <button key={`d-${date.dayNum}-${date.monthShort}`} onClick={() => {
+                  const dayOfWeek = new Date(date.isoDate + 'T12:00:00').getDay();
+                  const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
+                  const isDateIncompatible = (selectedService?.onlyWeekday && isWeekendDay) || (selectedService?.onlyWeekend && !isWeekendDay);
+                  return <button key={`d-${date.dayNum}-${date.monthShort}`} disabled={!!isDateIncompatible} onClick={() => {
                     setSelectedDate(date.label);
                     setSelectedSlot(null);
                   }} style={{
@@ -1061,10 +1064,11 @@ export const ClientPage = () => {
                     padding: isMobile ? '10px 4px' : '14px 0',
                     textAlign: 'center',
                     borderRadius: 6,
-                    cursor: 'pointer',
-                    border: isSel ? '2px solid #587373' : isToday && !isSel ? '2px solid rgba(88,115,115,0.4)' : '2px solid rgba(13,13,13,0.18)',
-                    backgroundColor: isSel ? '#587373' : '#F2F0E9',
-                    boxShadow: isSel ? '3px 3px 0px #0D0D0D' : '3px 3px 0px rgba(13,13,13,0.1)',
+                    cursor: isDateIncompatible ? 'not-allowed' : 'pointer',
+                    border: isDateIncompatible ? '2px solid rgba(13,13,13,0.08)' : isSel ? '2px solid #587373' : isToday && !isSel ? '2px solid rgba(88,115,115,0.4)' : '2px solid rgba(13,13,13,0.18)',
+                    backgroundColor: isDateIncompatible ? 'rgba(13,13,13,0.04)' : isSel ? '#587373' : '#F2F0E9',
+                    boxShadow: isDateIncompatible ? 'none' : isSel ? '3px 3px 0px #0D0D0D' : '3px 3px 0px rgba(13,13,13,0.1)',
+                    opacity: isDateIncompatible ? 0.4 : 1,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -1072,13 +1076,13 @@ export const ClientPage = () => {
                     fontFamily: "'DM Sans', sans-serif",
                     transition: 'transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease'
                   }} onMouseEnter={e => {
-                    if (!isSel) {
+                    if (!isSel && !isDateIncompatible) {
                       e.currentTarget.style.borderColor = 'rgba(88,115,115,0.5)';
                       e.currentTarget.style.transform = 'translate(-1px,-1px)';
                       e.currentTarget.style.boxShadow = '4px 4px 0px rgba(13,13,13,0.15)';
                     }
                   }} onMouseLeave={e => {
-                    if (!isSel) {
+                    if (!isSel && !isDateIncompatible) {
                       e.currentTarget.style.borderColor = isToday ? 'rgba(88,115,115,0.4)' : 'rgba(13,13,13,0.18)';
                       e.currentTarget.style.transform = 'translate(0,0)';
                       e.currentTarget.style.boxShadow = '3px 3px 0px rgba(13,13,13,0.1)';

@@ -11,7 +11,7 @@ import {
 } from '../data/constants';
 
 import { updateBookingStatus, saveBlockedSlots, subscribeLoyaltyProgram, saveLoyaltyProgram, saveWorkingHours } from '../lib/db';
-import { isPassed } from '../lib/dates';
+import { isPassed, bookingSortKey } from '../lib/dates';
 import { sendCustomEmail, openWhatsApp } from '../lib/email';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -121,19 +121,16 @@ export const AdminPage = () => {
 
   // ─── Sorted & filtered bookings ───────────────────────────────────────
   const sortedBookings = [...bookings].sort((a, b) => {
-    if (sortBy === 'prix') {
-      return b.price - a.price;
-    }
-    const dateA = getDateOrder(a.date);
-    const dateB = getDateOrder(b.date);
-    if (dateA !== dateB) return dateA - dateB;
-    return slotToMinutes(a.slot) - slotToMinutes(b.slot);
+    if (sortBy === 'prix') return b.price - a.price;
+    const keyA = bookingSortKey(a, now);
+    const keyB = bookingSortKey(b, now);
+    return keyA < keyB ? -1 : keyA > keyB ? 1 : 0;
   });
   const filteredBookings = sortedBookings.filter(b => {
-    if (bookingFilter === 'all') return true;
-    if (bookingFilter === 'cancelled') return b.status === 'cancelled';
     if (bookingFilter === 'completed') return isPassed(b, now) && b.status !== 'cancelled';
     if (isPassed(b, now)) return false;
+    if (bookingFilter === 'all') return true;
+    if (bookingFilter === 'cancelled') return b.status === 'cancelled';
     return b.status === bookingFilter;
   });
 
